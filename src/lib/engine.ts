@@ -11,14 +11,14 @@ const STOPWORDS = new Set([
   "are", "be", "with", "on", "in", "it", "this", "that", "should", "would",
   "could", "do", "did", "does", "have", "has", "let", "lets", "just", "going",
   "go", "gonna", "next", "sprint", "everything", "thing", "things", "about",
-  "why", "what", "when", "who", "how", "did", "was", "were", "i", "you",
+  "why", "what", "when", "who", "how", "was", "were", "i", "you",
 ]);
 
 const ADOPT_VERBS = [
   "migrate to", "move to", "switch to", "switching to", "move everything to",
   "migrate everything to", "go with", "going with", "adopt", "use", "using",
   "pick", "choose", "rebuild on", "rewrite on", "swap to", "swap in",
-  "move over to", "shift to", "standardize on",
+  "move over to", "shift to", "standardize on", "standardizing on",
 ];
 
 const DROP_VERBS = [
@@ -43,7 +43,11 @@ const DECISION_TRIGGERS = [
 ];
 
 function normalize(text: string) {
-  return text.toLowerCase().replace(/[^a-z0-9\s-]/g, " ").replace(/\s+/g, " ").trim();
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function tokens(text: string) {
@@ -53,16 +57,18 @@ function tokens(text: string) {
 }
 
 function phraseTerms(value: string): string[] {
-  // turn "per-seat pricing" into useful match terms
   const base = normalize(value);
   const parts = base.split(" ").filter((p) => p.length > 2 && !STOPWORDS.has(p));
-  return Array.from(new Set([base, ...parts, base.replace(/\s+/g, "")]));
+  return Array.from(new Set([base, ...parts]));
 }
 
+// Word-boundary match so a short tag like "ui" never matches inside "build".
 function containsTerm(haystack: string, term: string) {
   const t = normalize(term);
   if (!t) return false;
-  return haystack.includes(t);
+  const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`(?:^|[^a-z0-9])${escaped}(?:[^a-z0-9]|$)`);
+  return re.test(haystack);
 }
 
 function decisionTerms(d: Decision) {
@@ -74,7 +80,7 @@ function decisionTerms(d: Decision) {
 
 export function detectDecision(text: string): CaptureCandidate {
   const norm = normalize(text);
-  const trigger = DECISION_TRIGGERS.find((t) => norm.includes(t));
+  const trigger = DECISION_TRIGGERS.find((t) => norm.includes(normalize(t)));
   const adoptVerb = ADOPT_VERBS.find((v) => norm.includes(v));
   const dropVerb = DROP_VERBS.find((v) => norm.includes(v));
 
@@ -93,7 +99,6 @@ export function detectDecision(text: string): CaptureCandidate {
     };
   }
 
-  // pull the option referenced after the verb / trigger
   const keyTokens = tokens(text);
   const chosen = extractOption(norm, adoptVerb) ?? keyTokens.slice(-3).join(" ");
   const rejected = dropVerb ? [extractOption(norm, dropVerb) ?? ""] : [];
@@ -110,9 +115,7 @@ export function detectDecision(text: string): CaptureCandidate {
     detected: true,
     confidence,
     suggestedTitle: title,
-    suggestedOutcome: dropVerb
-      ? `Stop using ${cap(chosen)}`
-      : `Adopt ${cap(chosen)}`,
+    suggestedOutcome: dropVerb ? `Stop using ${cap(chosen)}` : `Adopt ${cap(chosen)}`,
     suggestedTopic: topic,
     suggestedChosen: chosen,
     suggestedRejected: rejected.filter(Boolean),
@@ -140,6 +143,7 @@ function guessTopic(keyTokens: string[]): string {
     analytics: "analytics", posthog: "analytics", mixpanel: "analytics",
     intercom: "support tooling", zendesk: "support tooling",
     vercel: "infrastructure", kubernetes: "infrastructure", aws: "infrastructure",
+    stripe: "billing", billing: "billing",
     design: "design system", tailwind: "design system",
   };
   for (const t of keyTokens) {
@@ -179,8 +183,6 @@ export function findContradictions(
     const mentionsChosen = chosen.filter((t) => containsTerm(norm, t));
     const mentionsTopic = tags.filter((t) => containsTerm(norm, t));
 
-    // Reversal: the new message proposes adopting something this decision
-    // explicitly rejected, or proposes dropping what this decision chose.
     const reversalByRejected = mentionsRejected.length > 0;
     const reversalByDrop = dropVerb && mentionsChosen.length > 0;
 
@@ -200,19 +202,21 @@ export function findContradictions(
       continue;
     }
 
-    // Revival: same topic resurfaces with reopen language, no clear new winner.
+    // Revival needs a real topic hit AND reopen-style language. A bare keyword
+    // is not enough, which keeps unrelated decisions out of the result.
     if (mentionsTopic.length > 0 && (revivalHint || adoptVerb || dropVerb)) {
       hits.push({
         decision: d,
         conflictType: "revival",
-        matchedTerms: Array.from(new Set([...mentionsTopic, ...mentionsChosen])).slice(0, 4),
+        matchedTerms: Array.from(
+          new Set([...mentionsTopic, ...mentionsChosen])
+        ).slice(0, 4),
         severity: "medium",
         explanation: `This reopens the ${d.topic} question the team already settled on ${cap(d.chosen)}.`,
       });
     }
   }
 
-  // strongest first
   return hits.sort((a, b) => {
     const order = { high: 0, medium: 1 } as const;
     return order[a.severity] - order[b.severity];
@@ -231,9 +235,9 @@ export function answerQuestion(
       );
       let score = 0;
       for (const t of qTokens) {
-        if (hay.includes(t)) score += 1;
+        if (containsTerm(hay, t)) score += 1;
         if (d.tags.map(normalize).includes(t)) score += 1.5;
-        if (normalize(d.chosen).includes(t)) score += 1.5;
+        if (containsTerm(normalize(d.chosen), t)) score += 1.5;
       }
       return { d, score };
     })
@@ -270,12 +274,7 @@ export function answerQuestion(
       : ""
   }`.trim();
 
-  return {
-    answer,
-    grounded: true,
-    citations,
-    mode: "demo",
-  };
+  return { answer, grounded: true, citations, mode: "demo" };
 }
 
 export function channelName(id: string): string {
