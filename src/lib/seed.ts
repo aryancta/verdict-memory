@@ -1,0 +1,177 @@
+import type { Decision } from "./types";
+
+export const TEAM = {
+  maya: { name: "Maya Chen", role: "Engineering Lead" },
+  devin: { name: "Devin Park", role: "Backend Engineer" },
+  priya: { name: "Priya Nair", role: "Product Manager" },
+  sam: { name: "Sam Rivera", role: "Co-founder / CEO" },
+  aisha: { name: "Aisha Khan", role: "Product Designer" },
+  leo: { name: "Leo Martins", role: "Growth Lead" },
+  jordan: { name: "Jordan Wu", role: "Operations" },
+} as const;
+
+const link = (channel: string, ts: string) =>
+  `https://northwind.slack.com/archives/${channel}/p${ts}`;
+
+export const SEED_DECISIONS: Decision[] = [
+  {
+    id: "dec_postgres",
+    title: "Use PostgreSQL as the primary datastore",
+    topic: "database",
+    outcome: "PostgreSQL over MongoDB for the core application data",
+    chosen: "postgresql",
+    rejected: ["mongodb", "dynamodb"],
+    rationale:
+      "Our billing and audit tables need real transactions across multiple rows. We were burned by eventual-consistency bugs in the prototype, so we wanted ACID guarantees and mature foreign-key support. Postgres also gives us JSONB when we genuinely need flexible documents, so we keep the escape hatch without giving up integrity.",
+    owner: TEAM.maya,
+    stakeholders: [TEAM.devin, TEAM.sam],
+    status: "active",
+    decidedAt: "2026-03-12T16:20:00.000Z",
+    channel: "C01ENG",
+    permalink: link("C01ENG", "1741796400000200"),
+    tags: ["database", "postgres", "mongodb", "data", "acid", "billing"],
+    confidence: 0.94,
+    sourceQuote:
+      "Final call: we are going with Postgres. The billing tables need real transactions and we cannot keep papering over consistency bugs.",
+  },
+  {
+    id: "dec_pricing",
+    title: "Ship usage-based pricing, not per-seat",
+    topic: "pricing",
+    outcome: "Usage-based metering instead of per-seat subscriptions",
+    chosen: "usage-based pricing",
+    rejected: ["per-seat pricing", "flat pricing"],
+    rationale:
+      "Our champion users are small teams that share a few accounts but push huge volume. Per-seat pricing punished exactly the customers who loved us most and capped our expansion revenue. Usage-based lets accounts start cheap and grow with value delivered.",
+    owner: TEAM.priya,
+    stakeholders: [TEAM.sam, TEAM.leo],
+    status: "active",
+    decidedAt: "2026-04-02T18:05:00.000Z",
+    channel: "C02PRD",
+    permalink: link("C02PRD", "1743616800000400"),
+    tags: ["pricing", "usage-based", "per-seat", "revenue", "billing", "monetization"],
+    confidence: 0.9,
+    sourceQuote:
+      "We are dropping per-seat. The plan is usage-based metering so the teams driving volume are not penalized for it.",
+  },
+  {
+    id: "dec_auth",
+    title: "Adopt Clerk for authentication",
+    topic: "authentication",
+    outcome: "Use Clerk instead of building auth in-house",
+    chosen: "clerk",
+    rejected: ["in-house auth", "auth0"],
+    rationale:
+      "Auth is a security liability we do not want to own this early. Clerk ships SSO, MFA, and session management out of the box, and the pricing is fine at our scale. We can revisit if enterprise SSO requirements outgrow it.",
+    owner: TEAM.devin,
+    stakeholders: [TEAM.maya],
+    status: "active",
+    decidedAt: "2026-02-18T15:30:00.000Z",
+    channel: "C01ENG",
+    permalink: link("C01ENG", "1739892600000100"),
+    tags: ["auth", "authentication", "clerk", "auth0", "security", "sso"],
+    confidence: 0.86,
+    sourceQuote:
+      "Let's go with Clerk for auth. Rolling our own session and MFA stack is not where we should spend security budget right now.",
+  },
+  {
+    id: "dec_mobile",
+    title: "Ship a PWA first, defer native apps",
+    topic: "mobile",
+    outcome: "Progressive web app now, native iOS/Android later",
+    chosen: "pwa",
+    rejected: ["native mobile apps", "react native"],
+    rationale:
+      "Most mobile usage is read and quick-approve flows, which a PWA handles well. A native build would split the team and we do not have the staffing. We will reassess native once we see real mobile retention.",
+    owner: TEAM.priya,
+    stakeholders: [TEAM.aisha, TEAM.maya],
+    status: "stale",
+    decidedAt: "2025-11-20T17:00:00.000Z",
+    channel: "C02PRD",
+    permalink: link("C02PRD", "1732122000000300"),
+    tags: ["mobile", "pwa", "native", "ios", "android", "react-native"],
+    confidence: 0.78,
+    sourceQuote:
+      "Decision: PWA first. Native apps are deferred until we have signal that mobile retention justifies a second codebase.",
+  },
+  {
+    id: "dec_analytics",
+    title: "Standardize on PostHog for product analytics",
+    topic: "analytics",
+    outcome: "PostHog over Mixpanel for product and funnel analytics",
+    chosen: "posthog",
+    rejected: ["mixpanel", "amplitude"],
+    rationale:
+      "PostHog gives us product analytics, session replay, and feature flags in one tool we can self-host if privacy review demands it. Consolidating vendors keeps our data surface small and the bill predictable.",
+    owner: TEAM.leo,
+    stakeholders: [TEAM.priya, TEAM.devin],
+    status: "active",
+    decidedAt: "2026-03-28T14:10:00.000Z",
+    channel: "C03GRW",
+    permalink: link("C03GRW", "1743171000000500"),
+    tags: ["analytics", "posthog", "mixpanel", "amplitude", "tracking", "feature-flags"],
+    confidence: 0.83,
+    sourceQuote:
+      "We're going with PostHog. One tool for analytics, replay, and flags beats stitching Mixpanel together with three other vendors.",
+  },
+  {
+    id: "dec_support",
+    title: "Use Intercom for customer support",
+    topic: "support tooling",
+    outcome: "Intercom over Zendesk for the support inbox",
+    chosen: "intercom",
+    rejected: ["zendesk", "front"],
+    rationale:
+      "Intercom's in-product messenger matches how our users actually ask for help, and the AI resolution bot deflects a chunk of tier-one tickets. Zendesk felt heavier than we need at this size.",
+    owner: TEAM.jordan,
+    stakeholders: [TEAM.priya],
+    status: "active",
+    decidedAt: "2026-01-15T19:45:00.000Z",
+    channel: "C05OPS",
+    permalink: link("C05OPS", "1736970300000700"),
+    tags: ["support", "intercom", "zendesk", "tooling", "customer-success"],
+    confidence: 0.8,
+    sourceQuote:
+      "Final call: Intercom for support. The in-product messenger and AI deflection fit us better than Zendesk.",
+  },
+  {
+    id: "dec_hosting",
+    title: "Host on Vercel plus managed Postgres",
+    topic: "infrastructure",
+    outcome: "Vercel for the app, managed Postgres for data, no self-managed Kubernetes",
+    chosen: "vercel",
+    rejected: ["self-managed kubernetes", "bare aws"],
+    rationale:
+      "We are a small team and do not want to babysit clusters. Vercel handles the app tier and previews, and managed Postgres handles durability. We trade some cost for not hiring a platform engineer yet.",
+    owner: TEAM.maya,
+    stakeholders: [TEAM.devin, TEAM.sam],
+    status: "active",
+    decidedAt: "2026-02-05T16:00:00.000Z",
+    channel: "C01ENG",
+    permalink: link("C01ENG", "1738771200000600"),
+    tags: ["infra", "infrastructure", "vercel", "kubernetes", "hosting", "devops"],
+    confidence: 0.82,
+    sourceQuote:
+      "Let's go with Vercel and managed Postgres. We are not standing up Kubernetes with this headcount.",
+  },
+  {
+    id: "dec_design",
+    title: "Build on a custom design system, not a UI kit",
+    topic: "design system",
+    outcome: "Own design system on Tailwind tokens instead of an off-the-shelf kit",
+    chosen: "custom design system",
+    rejected: ["material ui", "off-the-shelf kit"],
+    rationale:
+      "Our brand needs a distinct feel and we kept fighting Material's opinions. A thin token-based system on Tailwind gives us control without a huge maintenance burden, and it keeps bundle size down.",
+    owner: TEAM.aisha,
+    stakeholders: [TEAM.maya, TEAM.priya],
+    status: "stale",
+    decidedAt: "2025-12-08T13:20:00.000Z",
+    channel: "C04DSN",
+    permalink: link("C04DSN", "1733664000000800"),
+    tags: ["design", "design-system", "tailwind", "material", "ui", "frontend"],
+    confidence: 0.75,
+    sourceQuote:
+      "Decision: we build our own lightweight design system on Tailwind tokens. Fighting Material's defaults is costing us more than it saves.",
+  },
+];
