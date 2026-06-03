@@ -1,0 +1,42 @@
+{
+  "video_script": [
+    {"goto": "/", "wait_ms": 2500, "caption": "Verdict Memory: organizational memory for Slack"},
+    {"click": "button:has-text('Watch it catch a contradiction')", "wait_ms": 2500, "caption": "Open the live channel"},
+    {"click": "button:has-text('Reverse the database call')", "wait_ms": 4000, "caption": "A teammate proposes reversing a settled call"},
+    {"scroll": 320, "wait_ms": 2500, "caption": "The agent flags the contradiction with the original reasoning"},
+    {"click": "button:has-text('View decision')", "wait_ms": 2500, "caption": "Full provenance: who decided, when, and why"},
+    {"goto": "/ask", "wait_ms": 2000, "caption": "Now ask memory in plain language"},
+    {"fill": "input[name='question']", "value": "Why did we pick Postgres over MongoDB?", "wait_ms": 800},
+    {"click": "button:has-text('Ask')", "wait_ms": 3500, "caption": "A grounded answer with clickable receipts"},
+    {"scroll": 280, "wait_ms": 2000, "caption": "Every answer cites the real thread"},
+    {"goto": "/dashboard", "wait_ms": 2500, "caption": "Decision memory, searchable with its source"}
+  ],
+  "screenshot_shots": [
+    {"path": "/", "description": "Hero landing with the contradiction-catch preview", "wait_ms": 2500},
+    {"path": "/dashboard", "description": "Decision memory dashboard populated with the seeded log", "wait_ms": 2000},
+    {"path": "/alerts", "description": "Contradiction and revival alert feed with Block Kit cards", "wait_ms": 2000},
+    {"path": "/settings", "description": "Bring-your-own API key panel for live mode", "wait_ms": 1500}
+  ],
+  "submission": {
+    "inspiration": "We kept watching teams re-decide things they had already settled. A choice made in a Slack thread three months ago would quietly get reversed because nobody could find the original reasoning, and new hires had no way to learn why anything was the way it was. Slack search could find the words but never the why, so we wanted an agent that treats decisions as memory with provenance instead of messages that scroll away.",
+    "what_it_does": "Verdict Memory captures the decisions a team makes in Slack, with the owner, the reasoning, and a link back to the source thread. It answers why questions in plain language with real citations, and it proactively warns the team when a new discussion reverses or reopens a settled decision. The people who benefit are cross-functional teams at growing companies: engineering leads, product managers, and ops folks who lose the why behind their calls.",
+    "how_we_built_it": "We built the web companion in Next.js 14 with TypeScript, Tailwind, and a small shadcn-style component layer, and packaged it with a multi-stage Docker build on standalone output. The contradiction engine records what each decision chose and rejected, then matches new messages that advocate a rejected option or drop a chosen one. We use Anthropic Claude for detection and reasoning, model the retrieval around Slack's Real-Time Search API so it stays permission-aware, and degrade gracefully to a deterministic engine and seeded data when no key is present.",
+    "challenges": "Decision detection precision was the hard one. Over-firing on casual chatter would kill trust, so we lead with a one-tap human confirmation card before anything is committed, and we suppress the capture prompt when a message clearly reverses an existing decision so the warning stays the focus. The second challenge was making the whole thing demo without any setup, which pushed us to build a real local reasoning engine rather than only calling out to an API.",
+    "accomplishments": "The contradiction catch genuinely lands in seconds, and it reads like a teammate gently saying you already decided the opposite, here is why. We are proud that every answer and every alert carries provenance back to a real thread, and that the entire product is explorable in demo mode with zero keys while still upgrading cleanly to live Claude reasoning.",
+    "what_we_learned": "Memory for agents is not retrieval. The interesting work is handling contradiction and staleness, which classical keyword search ignores entirely. Tracking what was rejected, not just what was chosen, turned out to be the single most useful piece of structure for catching reversals.",
+    "whats_next": "We want to wire the live Slack MCP server so capture cards and alerts post into real channels, add one-click decision-history export to a Slack canvas for onboarding, score decision confidence as evidence accumulates or ages, and surface team analytics on which topics get re-litigated most.",
+    "built_with": [
+      "next.js-14",
+      "typescript",
+      "tailwindcss",
+      "shadcn-ui",
+      "radix-ui",
+      "anthropic-claude",
+      "slack-real-time-search-api",
+      "slack-mcp-server",
+      "lucide-react",
+      "docker"
+    ],
+    "category_hint": "Slack agent for decision memory and contradiction detection"
+  }
+}
